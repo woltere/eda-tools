@@ -1,0 +1,12 @@
+services:
+  eda-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: eda-tools:bookworm
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    command: ["bash"]
