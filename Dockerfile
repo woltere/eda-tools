@@ -5,10 +5,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
+        binutils-riscv64-unknown-elf \
         ca-certificates \
         cmake \
         g++ \
         gcc \
+        gcc-riscv64-unknown-elf \
         git \
         graphviz \
         libboost-all-dev \
@@ -46,6 +48,8 @@ WORKDIR /workspace
 RUN yosys -V \
     && verilator --version \
     && dot -V \
+    && riscv64-unknown-elf-gcc --version \
+    && riscv64-unknown-elf-objcopy --version >/dev/null \
     && command -v netlistsvg >/dev/null \
     && command -v nextpnr-himbaechel >/dev/null \
     && command -v gowin_pack >/dev/null \

@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cstdint>
 #include <iostream>
 #include <string>
 
@@ -16,6 +17,8 @@
 namespace {
 
 vluint64_t main_time = 0;
+constexpr int kClksPerBit = 234;
+const std::string kExpectedMessage = "Hello from Primer 20K!\r\n";
 
 #if VM_TRACE_FST
 using TraceT = VerilatedFstC;
@@ -37,6 +40,54 @@ void tick(Vtop& top, TraceT& trace) {
     trace.dump(main_time++);
 }
 
+struct UartDecoder {
+    bool prev_tx = true;
+    bool receiving = false;
+    int clocks_until_sample = 0;
+    int bit_index = 0;
+    std::uint8_t current_byte = 0;
+    std::string decoded;
+
+    void observe(bool tx_level) {
+        if (!receiving) begin_observation(tx_level);
+        else sample(tx_level);
+        prev_tx = tx_level;
+    }
+
+    void begin_observation(bool tx_level) {
+        if (prev_tx && !tx_level) {
+            receiving = true;
+            clocks_until_sample = kClksPerBit + (kClksPerBit / 2);
+            bit_index = 0;
+            current_byte = 0;
+        }
+    }
+
+    void sample(bool tx_level) {
+        if (clocks_until_sample > 0) {
+            --clocks_until_sample;
+            return;
+        }
+
+        if (bit_index < 8) {
+            if (tx_level) {
+                current_byte |= static_cast<std::uint8_t>(1u << bit_index);
+            }
+            ++bit_index;
+            clocks_until_sample = kClksPerBit - 1;
+            return;
+        }
+
+        if (!tx_level) {
+            std::cerr << "UART stop bit was low\n";
+            std::exit(1);
+        }
+
+        decoded.push_back(static_cast<char>(current_byte));
+        receiving = false;
+    }
+};
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -54,6 +105,7 @@ int main(int argc, char** argv) {
 
     Vtop top;
     TraceT trace;
+    UartDecoder decoder;
 
     Verilated::traceEverOn(true);
     top.trace(&trace, 99);
@@ -71,6 +123,7 @@ int main(int argc, char** argv) {
 
     for (vluint64_t i = 0; i < cycles; ++i) {
         tick(top, trace);
+        decoder.observe(top.uart_tx);
         if (Verilated::gotFinish()) {
             break;
         }
@@ -79,7 +132,20 @@ int main(int argc, char** argv) {
     top.final();
     trace.close();
 
+    const bool should_check_message = cycles >= 60000;
+    if (should_check_message) {
+        if (decoder.decoded.find(kExpectedMessage) == std::string::npos) {
+            std::cerr << "Decoded UART stream did not contain expected message.\n";
+            std::cerr << "Expected: " << kExpectedMessage << "\n";
+            std::cerr << "Decoded:  " << decoder.decoded << "\n";
+            return 1;
+        }
+    }
+
     std::cout << "Generated waveform: " << output_path << "\n";
     std::cout << "Simulated cycles: " << cycles << "\n";
+    if (!decoder.decoded.empty()) {
+        std::cout << "Decoded UART: " << decoder.decoded << "\n";
+    }
     return 0;
 }

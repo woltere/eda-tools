@@ -1,0 +1,14 @@
+{
+  "xlen": 32,
+  "enable_misaligned": false,
+  "boot_pc": 2147483648,
+  "memory": {
+    "regions": [
+      {
+        "name": "ram",
+        "base": 2147483648,
+        "size": 65536
+      }
+    ]
+  }
+}

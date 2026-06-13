@@ -6,6 +6,11 @@ module top (
 
     localparam integer CLOCK_HZ        = 27_000_000;
     localparam integer BAUD_RATE       = 115_200;
+    localparam [2:0]  STATE_PREPARE      = 3'd0;
+    localparam [2:0]  STATE_LAUNCH       = 3'd1;
+    localparam [2:0]  STATE_WAIT_BUSY    = 3'd2;
+    localparam [2:0]  STATE_WAIT_IDLE    = 3'd3;
+    localparam [2:0]  STATE_REPEAT_DELAY = 3'd4;
     localparam [4:0]  LAST_MESSAGE_INDEX = 5'd23;
     localparam [4:0]  MESSAGE_DONE       = 5'd24;
     localparam integer REPEAT_DELAY_CLKS = CLOCK_HZ;
@@ -14,6 +19,7 @@ module top (
     reg [7:0]  tx_data;
     wire       tx_busy;
 
+    reg [2:0]  state;
     reg [4:0]  message_index;
     reg [31:0] repeat_countdown;
 
@@ -65,27 +71,61 @@ module top (
         if (!reset_n) begin
             tx_start         <= 1'b0;
             tx_data          <= 8'h00;
+            state            <= STATE_PREPARE;
             message_index    <= 5'd0;
             repeat_countdown <= 32'd0;
         end else begin
             tx_start <= 1'b0;
 
-            if (!tx_busy) begin
-                if (message_index < LAST_MESSAGE_INDEX) begin
-                    tx_data       <= message_byte(message_index);
-                    tx_start      <= 1'b1;
-                    message_index <= message_index + 5'd1;
-                end else if (message_index == LAST_MESSAGE_INDEX) begin
-                    tx_data          <= message_byte(message_index);
-                    tx_start         <= 1'b1;
-                    message_index    <= MESSAGE_DONE;
-                    repeat_countdown <= REPEAT_DELAY_CLKS;
-                end else if (repeat_countdown != 0) begin
-                    repeat_countdown <= repeat_countdown - 32'd1;
-                end else begin
-                    message_index <= 5'd0;
+            case (state)
+                STATE_PREPARE: begin
+                    if (message_index == MESSAGE_DONE) begin
+                        state <= STATE_REPEAT_DELAY;
+                    end else if (!tx_busy) begin
+                        tx_data <= message_byte(message_index);
+                        state   <= STATE_LAUNCH;
+                    end
                 end
-            end
+
+                STATE_LAUNCH: begin
+                    if (!tx_busy) begin
+                        tx_start <= 1'b1;
+                        state    <= STATE_WAIT_BUSY;
+
+                        if (message_index == LAST_MESSAGE_INDEX) begin
+                            message_index    <= MESSAGE_DONE;
+                            repeat_countdown <= REPEAT_DELAY_CLKS;
+                        end else begin
+                            message_index <= message_index + 5'd1;
+                        end
+                    end
+                end
+
+                STATE_WAIT_BUSY: begin
+                    if (tx_busy) begin
+                        state <= STATE_WAIT_IDLE;
+                    end
+                end
+
+                STATE_WAIT_IDLE: begin
+                    if (!tx_busy) begin
+                        state <= STATE_PREPARE;
+                    end
+                end
+
+                STATE_REPEAT_DELAY: begin
+                    if (repeat_countdown != 0) begin
+                        repeat_countdown <= repeat_countdown - 32'd1;
+                    end else begin
+                        message_index <= 5'd0;
+                        state         <= STATE_PREPARE;
+                    end
+                end
+
+                default: begin
+                    state <= STATE_PREPARE;
+                end
+            endcase
         end
     end
 

@@ -58,6 +58,11 @@ This creates:
 
 - `build/sim/top.fst`
 
+The simulation testbench also decodes the UART stream. With the default cycle count, it now checks that the output contains:
+
+- `Hello from Primer 20K!`
+- followed by `CR` / `LF`
+
 You can also choose the output path and simulation length:
 
 ```sh
