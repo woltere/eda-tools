@@ -4,8 +4,15 @@ IMAGE_TAG ?= bookworm-$(IMAGE_REF)
 IMAGE_NAME := eda-tools:$(IMAGE_TAG)
 SERVICE := eda-tools
 COMPOSE := EDA_TOOLS_IMAGE_TAG=$(IMAGE_TAG) docker compose
+SYFT_IMAGE ?= anchore/syft:v1.45.1
+SBOM_DIR ?= build/sbom
+SBOM_IMAGE_REF := $(shell echo "$(IMAGE_NAME)" | sed 's/[/:]/_/g')
+SBOM_FILE ?= $(SBOM_DIR)/$(SBOM_IMAGE_REF).spdx.json
+SBOM_TABLE_FILE ?= $(SBOM_DIR)/$(SBOM_IMAGE_REF).txt
+SBOM_FORMAT ?= spdx-json
+CHECK_TOOL_UPDATES_STRICT ?= 0
 
-.PHONY: image-name build shell tool-versions yosys-version sv2v-version nextpnr-version verible-version \
+.PHONY: image-name build shell sbom sbom-table check-tool-updates tool-versions yosys-version sv2v-version nextpnr-version verible-version \
 	verilator-version graphviz-version netlistsvg-check \
 	riscv-gcc-version rv32i-lint rv32i-build-basic rv32i-run-basic rv32i-test
 
@@ -17,6 +24,25 @@ build:
 
 shell:
 	$(COMPOSE) run --rm $(SERVICE)
+
+sbom:
+	@mkdir -p "$(SBOM_DIR)"
+	docker run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v "$(CURDIR)/$(SBOM_DIR):/sbom" \
+		$(SYFT_IMAGE) "$(IMAGE_NAME)" -o "$(SBOM_FORMAT)=/sbom/$(notdir $(SBOM_FILE))"
+	@echo "SBOM written to $(SBOM_FILE)"
+
+sbom-table:
+	@mkdir -p "$(SBOM_DIR)"
+	docker run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+		-v "$(CURDIR)/$(SBOM_DIR):/sbom" \
+		$(SYFT_IMAGE) "$(IMAGE_NAME)" -o "table=/sbom/$(notdir $(SBOM_TABLE_FILE))"
+	@echo "Human-readable SBOM written to $(SBOM_TABLE_FILE)"
+
+check-tool-updates:
+	CHECK_TOOL_UPDATES_STRICT=$(CHECK_TOOL_UPDATES_STRICT) sh scripts/check-tool-updates.sh
 
 tool-versions: yosys-version sv2v-version nextpnr-version verible-version verilator-version riscv-gcc-version graphviz-version netlistsvg-check
 

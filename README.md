@@ -22,6 +22,7 @@ Included tools:
 - `Dockerfile` builds the tool image
 - `docker-compose.yml` gives you an interactive shell with the current directory mounted at `/workspace`
 - `Makefile` wraps the common commands
+- `scripts/check-tool-updates.sh` checks pinned tool versions against upstream
 
 ## Build
 
@@ -114,6 +115,9 @@ Or use the included Make targets:
 make build
 make image-name
 make shell
+make sbom
+make sbom-table
+make check-tool-updates
 make tool-versions
 make yosys-version
 make sv2v-version
@@ -124,6 +128,38 @@ make riscv-gcc-version
 make graphviz-version
 make netlistsvg-check
 ```
+
+## Security Checks
+
+Generate an SPDX JSON SBOM for the built image:
+
+```sh
+make build
+make sbom
+```
+
+The SBOM is written under `build/sbom/`.
+Generate a human-readable table as well:
+
+```sh
+make sbom-table
+```
+
+The target uses a pinned Syft scanner image by default:
+
+```sh
+SYFT_IMAGE=anchore/syft:v1.45.1 make sbom
+```
+
+Check whether newer pinned tool versions are available upstream:
+
+```sh
+make check-tool-updates
+```
+
+This checks the Dockerfile defaults for `YOSYS_REF`, `NEXTPNR_REF`, `SV2V_REF`, `APYCULA_VERSION`, `NETLISTSVG_VERSION`, and `VERIBLE_REF`.
+Debian-packaged runtime tools are updated by rebuilding from the current base image repositories.
+Use `CHECK_TOOL_UPDATES_STRICT=1 make check-tool-updates` when you want the command to fail if an update is available.
 
 ## Example Projects
 
