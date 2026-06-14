@@ -14,7 +14,7 @@ CHECK_TOOL_UPDATES_STRICT ?= 0
 
 .PHONY: image-name build shell sbom sbom-table check-tool-updates tool-versions yosys-version sv2v-version nextpnr-version verible-version \
 	verilator-version graphviz-version netlistsvg-check \
-	riscv-gcc-version rv32i-lint rv32i-build-basic rv32i-run-basic rv32i-test
+	riscv-gcc-version
 
 image-name:
 	@echo $(IMAGE_NAME)
@@ -69,15 +69,3 @@ netlistsvg-check:
 
 riscv-gcc-version:
 	$(COMPOSE) run --rm $(SERVICE) riscv64-unknown-elf-gcc --version
-
-rv32i-lint:
-	$(COMPOSE) run --rm $(SERVICE) verilator --lint-only -Wall -Wno-DECLFILENAME -Wno-UNUSEDSIGNAL -Wno-UNUSEDPARAM -Wno-CASEINCOMPLETE rtl/rv32i/rv32i_core.sv sim/rv32i/rv32i_system.sv
-
-rv32i-build-basic:
-	$(COMPOSE) run --rm $(SERVICE) sh -lc 'sim/rv32i/build-program.sh sim/rv32i/tests/basic.S'
-
-rv32i-run-basic:
-	$(COMPOSE) run --rm $(SERVICE) sh -lc "hex=\$$(sim/rv32i/build-program.sh sim/rv32i/tests/basic.S); sim/rv32i/run-sim.sh \"\$$hex\" sim/rv32i/build/basic.fst 20000"
-
-rv32i-test:
-	$(COMPOSE) run --rm $(SERVICE) sh -lc 'sim/rv32i/run-directed-tests.sh'
