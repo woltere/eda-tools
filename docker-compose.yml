@@ -3,7 +3,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: eda-tools:bookworm
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-debian:bookworm-slim}
+        YOSYS_REF: ${YOSYS_REF:-v0.66}
+        NEXTPNR_REF: ${NEXTPNR_REF:-nextpnr-0.10}
+        SV2V_REF: ${SV2V_REF:-v0.0.13}
+        APYCULA_VERSION: ${APYCULA_VERSION:-0.32}
+        NETLISTSVG_VERSION: ${NETLISTSVG_VERSION:-1.0.2}
+        VERIBLE_REF: ${VERIBLE_REF:-v0.0-4071-g8d9f2c97}
+        MAKE_JOBS: ${MAKE_JOBS:-}
+    image: eda-tools:${EDA_TOOLS_IMAGE_TAG:-bookworm-local}
     stdin_open: true
     tty: true
     working_dir: /workspace

@@ -1,16 +1,19 @@
 # EDA Tools Container
 
 This workspace provides a small Docker-based FPGA tool environment built on `debian:bookworm-slim`.
+The image uses multi-stage builds so source build dependencies stay out of the final runtime image.
 
 Included tools:
 
 - `verilator`
-- `yosys`
+- `yosys` built from source
+- `sv2v` built from source
+- `verible`
 - `riscv64-unknown-elf-gcc`
 - `riscv64-unknown-elf-objcopy`
 - `graphviz`
 - `netlistsvg`
-- `nextpnr-himbaechel`
+- `nextpnr-himbaechel` built from source
 - `gowin_pack`
 - `openFPGALoader`
 
@@ -25,27 +28,68 @@ Included tools:
 Using plain Docker:
 
 ```sh
-docker build -t eda-tools:bookworm .
+IMAGE_TAG=bookworm-$(git branch --show-current | tr '[:upper:]' '[:lower:]' | tr '/' '-')
+docker build -t "eda-tools:${IMAGE_TAG}" .
 ```
 
 Using Docker Compose:
 
 ```sh
-docker compose build
+make build
 ```
+
+`make build` tags the image as `eda-tools:bookworm-<current-git-tag-or-branch>`.
+For the current branch, that becomes `eda-tools:bookworm-update-versions-and-improvements`.
+Git refs are lowercased and made Docker-tag-safe.
+
+You can override the tag manually:
+
+```sh
+IMAGE_TAG=bookworm-experiment make build
+```
+
+If you use Docker Compose directly, pass the same tag variable yourself:
+
+```sh
+EDA_TOOLS_IMAGE_TAG=bookworm-$(git branch --show-current | tr '[:upper:]' '[:lower:]' | tr '/' '-') docker compose build
+```
+
+The source-built and package-installed tool versions can be overridden with build args:
+
+```sh
+YOSYS_REF=v0.66 \
+NEXTPNR_REF=nextpnr-0.10 \
+SV2V_REF=v0.0.13 \
+APYCULA_VERSION=0.32 \
+NETLISTSVG_VERSION=1.0.2 \
+VERIBLE_REF=v0.0-4071-g8d9f2c97 \
+MAKE_JOBS=8 \
+make build
+```
+
+The default build args are:
+
+- `BASE_IMAGE=debian:bookworm-slim`
+- `YOSYS_REF=v0.66`
+- `NEXTPNR_REF=nextpnr-0.10`
+- `SV2V_REF=v0.0.13`
+- `APYCULA_VERSION=0.32`
+- `NETLISTSVG_VERSION=1.0.2`
+- `VERIBLE_REF=v0.0-4071-g8d9f2c97`
+- `MAKE_JOBS`, unset by default, which falls back to `nproc`
 
 ## Run
 
 Open a shell in the container:
 
 ```sh
-docker compose run --rm eda-tools
+make shell
 ```
 
 Or with plain Docker:
 
 ```sh
-docker run --rm -it -v "$PWD:/workspace" -w /workspace eda-tools:bookworm
+docker run --rm -it -v "$PWD:/workspace" -w /workspace "$(make image-name)"
 ```
 
 ## Quick Checks
@@ -53,22 +97,28 @@ docker run --rm -it -v "$PWD:/workspace" -w /workspace eda-tools:bookworm
 Check the installed tool versions:
 
 ```sh
-docker compose run --rm eda-tools yosys -V
-docker compose run --rm eda-tools verilator --version
-docker compose run --rm eda-tools riscv64-unknown-elf-gcc --version
-docker compose run --rm eda-tools dot -V
-docker compose run --rm eda-tools sh -lc 'command -v netlistsvg'
-docker compose run --rm eda-tools sh -lc 'command -v nextpnr-himbaechel'
-docker compose run --rm eda-tools sh -lc 'command -v gowin_pack'
-docker compose run --rm eda-tools sh -lc 'command -v openFPGALoader'
+make tool-versions
+make yosys-version
+make sv2v-version
+make nextpnr-version
+make verible-version
+make verilator-version
+make riscv-gcc-version
+make graphviz-version
+make netlistsvg-check
 ```
 
 Or use the included Make targets:
 
 ```sh
 make build
+make image-name
 make shell
+make tool-versions
 make yosys-version
+make sv2v-version
+make nextpnr-version
+make verible-version
 make verilator-version
 make riscv-gcc-version
 make graphviz-version
