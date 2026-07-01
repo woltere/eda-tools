@@ -169,6 +169,8 @@ RUN apt-get update \
         ca-certificates \
         g++ \
         gcc-riscv64-unknown-elf \
+        binutils-riscv64-unknown-elf \
+        picolibc-riscv64-unknown-elf \
         git \
         graphviz \
         libboost-chrono1.74.0 \
@@ -190,7 +192,8 @@ RUN apt-get update \
         openfpgaloader \
         python3 \
         verilator \
-        zlib1g \
+        zlib1g-dev \
+        imagemagick \ 
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
